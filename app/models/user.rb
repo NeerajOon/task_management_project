@@ -4,6 +4,15 @@ class User < ApplicationRecord
   devise :database_authenticatable, :registerable,
          :recoverable, :rememberable, :validatable
 
- has_many :tasks        
+  before_save :ensure_authentication_token
+  has_many :tasks  
+  
+  private 
+  
+  def ensure_authentication_token
+    self.authentication_token ||= Devise.friendly_token
+  end
 
 end
+
+
