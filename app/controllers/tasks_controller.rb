@@ -13,7 +13,8 @@ class TasksController < ApplicationController
   def create
     @task = current_user.tasks.new(task_params)
     if @task.save
-      render json: @task
+      fix_task_deadline(@task)
+      # render json: @task
     else
       render json: { errors: @task.errors.full_messages }, status: :unprocessable_entity
     end
@@ -22,7 +23,9 @@ class TasksController < ApplicationController
   def update
     @task = current_user.tasks.find(params[:id])
     if @task.update(task_params)
+      fix_task_deadline(@task)
     else
+      render json: {message: "can not update"}, status: :unprocessable_entity
     end
   end
 
@@ -38,5 +41,13 @@ class TasksController < ApplicationController
 
   def task_params
     params.require(:task).permit(:title, :description, :status, :deadline)
+  end
+
+  def fix_task_deadline(task)
+    return if task.done? 
+    one_day_before = task.deadline - 1.day
+    one_hour_before = task.deadline - 1.hour
+    TaskDeadlineAlertJob.set(wait_until: one_day_before).perform_later(task) if one_day_before.future?
+    TaskDeadlineAlertJob.set(wait_until: one_hour_before).perform_later(task) if one_hour_before.future?
   end
 end
